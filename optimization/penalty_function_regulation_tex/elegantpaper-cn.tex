@@ -3,7 +3,7 @@
 % 完整编译: xelatex -> bibtex -> xelatex -> xelatex
 \documentclass[lang=cn,11pt,a4paper]{elegantpaper}
 
-% 这个模板有一点点的问题，其引用好像不太形
+% 这个模板有一点点的问题，其引用好像不太行
 
 \title{Learning with Sparsity}
 \author{Zhenwei Lin }
@@ -37,10 +37,116 @@
 \maketitle
 
 \begin{abstract}
-% 本文为 \href{https://github.com/ElegantLaTeX/ElegantPaper/}{ElegantPaper} 的说明文档。此模板基于 \LaTeX{} 的 article 类，专为工作论文写作而设计。设计这个模板的初衷是让作者不用关心工作论文的格式，专心写作，从而有更加舒心的写作体验。如果你有其他问题、建议或者报告 bug，可以在 \href{https://github.com/ElegantLaTeX/ElegantPaper/issues}{Github::ElegantPaper/issues} 留言。如果你想了解更多 Elegant\LaTeX{} 项目组设计的模板，请访问 \href{https://github.com/ElegantLaTeX/}{Github::ElegantLaTeX}。
-本文主要为几种稀疏模型的介绍：
-\keywords{Lasso; Ridege   }
+本文主要为处罚函数的介绍，处罚函数本质上就是对其的先验认识
+\keywords{}
 \end{abstract}
+
+
+\section{Group LASSO(成块收缩为0)}
+\begin{equation*}
+    \min \left\{ \frac{1}{2N}\sum_{i=1}^{N}(y_i-z_i^T\theta)^2+\lambda \sum_{j=1}^{J} \left\| \theta_j \right\| _2 \right\} 
+\end{equation*}
+
+\subsection{Algorithm: Block coordinate Descent}
+
+Given $\theta_1,\theta_2,\cdots,\theta_J$,assume $\theta_2,\cdots,\theta_J$ are known, denote $r_1 = y - \sum_{i=2}^{J}z_j^T\theta_j$  
+\begin{equation*}
+    \min_{\theta_1} \left\{ \frac{1}{2N} \sum_{i=1}^{N} (r_{1i} - z_i^T\theta _1)^2+\lambda \left\| \theta_1 \right\|_2 \right\} 
+\end{equation*}
+
+\begin{lemma}
+    Suppose $f(\theta) = \left\| \theta \right\|_2 ,\quad \theta \in R^d $ 
+    \begin{enumerate}
+        \setlength\itemindent{25pt} \item if $\theta \ne 0, \quad \nabla {f(\theta)} = \frac{\theta}{\left\| \theta \right\|_2 }$ 
+        \setlength\itemindent{25pt} \item if $\theta = 0$,$\partial f(0) = \left\{ v|\left\| v \right\| _2 \leq 1 \right\} $  
+    \end{enumerate}
+\end{lemma}
+
+\begin{proof}
+    \begin{equation*}
+        \begin{aligned}
+            f(\theta) = \left\| \theta \right\|_2 = (\sum_{i=1}\beta_i^2)^{\frac{1}{2}} 
+            \Rightarrow \frac{\partial f}{\partial \beta_1} = \frac{1}{2} \frac{1}{\left\| \theta \right\|_2 }2\beta_1\\
+            \forall x,f(x) \geq f(0)+(v,x)\Rightarrow \left\| x \right\| _2 \geq (v,x)
+        \end{aligned}
+    \end{equation*}
+    因为对于任意v都成立，所以对其利用C-S不等式取到最大值仍然成立，故要求 $\left\| v \right\| _2 \leq 1$ 
+\end{proof}
+
+在这个引理的基础上，对其进行计算最小值。
+
+when $ \theta_1 \ne 0$ 
+\begin{equation*}
+    \begin{aligned}
+    l(\theta) &= \frac{1}{2N} \left\| r_1-z_1\theta_1 \right\| ^2 + \lambda \left\| \theta_1 \right\| _2\\
+    \nabla {l(\theta)} &= -\frac{1}{N} z_1^T(r_1-z_1\theta_1)^2+\frac{2\lambda\theta_1}{\left\| \theta_1 \right\|^2 } = 0\\\Rightarrow&(z_1^Tz_1+\frac{N\lambda}{\left\| \theta_1 \right\| _2^2})\theta_1 = z_1^Tr_1\\
+    \Rightarrow&\theta_1 = (z_1^Tz_1+\frac{N\lambda I}{\left\| \theta_1 \right\|_2^2 })^{-1}z_1^Tr_1
+    \end{aligned}
+\end{equation*}
+
+when $\theta_1 = 0$ 
+\begin{equation*}
+    \begin{aligned}
+        0 \in \partial l(0) = -\frac{1}{N} z_1^T(r_1 - z_1\theta_1)^T+\lambda v\\
+        \Rightarrow v = \frac{1}{N\lambda} z_1^Tr_1 
+        \overset{\left\| v \right\| _2 \leq 1}{\Rightarrow} \left\| z_1^Tr_1 \right\|_2 \leq N\lambda  
+    \end{aligned}
+\end{equation*}
+
+因此有
+\begin{equation*}
+    \begin{aligned}
+        \theta_1 = \left\{\begin{array}{ll}
+            0\quad& \left\| z_1^Tr_1 \right\|_2 \leq N\lambda\\
+            N(z_1^Tz_1 + \frac{N\lambda I}{\left\| \theta_1 \right\| _2})^{-1}z_1^Tr_1 \quad& otherwise
+        \end{array}\right.
+    \end{aligned}
+\end{equation*}
+
+\begin{equation*}
+    \theta_1^1 = (z_1^Tz_1+\frac{N\lambda T}{\left\| \theta_1^0 \right\|_2 })^{-1} z_1^Tr_1
+\end{equation*}
+
+\subsection{Algorithm2: Proximal GD}
+$$ \theta_{t+1} = Prox_{g/\beta}(\theta_t) $$
+$$ prox(y) = argmin \left\{ \frac{1}{N} \left\| y-\theta \right\|^2+\lambda \sum_{j=1}^{J}\left\| \theta_j \right\| _2  \right\}  $$
+
+当好解的时候，即可以分解的时候可以采用这种方法。
+$$ min_{\theta_1} \left\{ \frac{1}{2N} \left\| y-\theta_1 \right\|^2+\lambda \left\| \theta_1 \right\|_2   \right\}  $$
+
+when $\theta_1 \ne 0$ 
+\begin{equation*}
+    \begin{aligned}
+        \frac{1}{N} (y_1-\theta_1)+\frac{\lambda \theta_1}{\left\| \theta_1 \right\|_2 } = 0\\
+        \Rightarrow y_1 = (1+\frac{N\lambda}{\left\| \theta_1 \right\|_2 })\theta_1\Rightarrow \theta_1 = \frac{\left\| \theta_1 \right\|_2 }{N\lambda+\left\| \theta_1 \right\|_2 }y_1\\
+        \left\| y_1 \right\| _2 = (1+\frac{N\lambda}{\left\| \theta_1 \right\|_2 })\left\| \theta_1 \right\|_2=\left\| \theta_1 \right\|_2+N\lambda  \\
+        \Rightarrow \theta_1 = \frac{\left\| y_1 \right\|_2 - N\lambda }{\left\| y_1 \right\|_2 }y_1 = (1-\frac{N\lambda}{\left\| y_1 \right\| _2})y_1
+    \end{aligned}
+\end{equation*}
+
+when $\theta_1 = 0$ 
+
+\begin{equation*}
+    \begin{aligned}
+        -\frac{1}{N} y_1 + \lambda v = 0
+        v\in \partial \left\| 0 \right\| _2 ,v= \frac{y_1}{N\lambda},\left\| y \right\| _2 \leq N\lambda \\
+        \theta_1 = \left\{\begin{array}{c l}
+            0 &\quad \left\| y_1 \right\| _2 \leq N\lambda\\
+            (1-\frac{N\lambda}{\left\| y_1 \right\|_2})y_1 &\quad otherwise
+        \end{array}\right.
+    \end{aligned}
+\end{equation*}
+
+
+
+
+
+
+
+
+
+
+
 
 % \section{Linear Regression}
 % dataset is $\left\{ (x_i,y_i) \right\}_{i=1}^N $,and the model is 
